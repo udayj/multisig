@@ -7,7 +7,7 @@ contract Multisig {
     //and slightly different checks while approving/executing
     //idea is to make this a dynamic ownership multisig wallet
     event Deposit(address depositer, uint amount);
-    event Submit(address sender, address to, uint value, bytes data);
+    event Submit(address sender, address to, uint value, bytes data, uint id);
     event Approve(address approver, uint id);
     event Revoke(address revoker, uint id);
     event Execute(address executor, uint id);
@@ -60,7 +60,7 @@ contract Multisig {
         
         transactions.push(Transaction(id_count,_value,0,_to,data,false));
         id_count++;
-        emit Submit(msg.sender, _to, _value,data);
+        emit Submit(msg.sender, _to, _value,data,id_count-1);
 
     }
 
@@ -111,10 +111,21 @@ contract Multisig {
         emit OwnershipRenounced(msg.sender);
     }
 
+    function getTransactionData(uint id) public view returns(Transaction memory) {
+
+        require(id < id_count, "Transaction id does not exist");
+        return transactions[id];
+
+    }
+
     receive() external payable {
         emit Deposit(msg.sender,msg.value);
     }
 
 
+    function getTotalTransactions() public view returns(uint){
 
+        return id_count;
+
+    }
 }

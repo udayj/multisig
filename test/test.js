@@ -1,29 +1,24 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-/*describe("Greeter", function () {
-  it("Should return the new greeting once it's changed", async function () {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy("Hello, world!");
-    await greeter.deployed();
-
-    expect(await greeter.greet()).to.equal("Hello, world!");
-
-    const setGreetingTx = await greeter.setGreeting("Hola, mundo!");
-
-    // wait until the transaction is mined
-    await setGreetingTx.wait();
-
-    expect(await greeter.greet()).to.equal("Hola, mundo!");
-  });
-});*/
-
 /*
 
 To-Test
-1. initial state - minapproval=1, numowners=1, only dpeloying address should be owner
+1. initial state - minapproval=1, numowners=1, only deploying address should be owner
 2. add 2 new owners - check minapproval, numowners, owners mapping
-3. 
+3. submit transaction - check transaction data, id count
+4. give 1 approval - check ds
+5. execute without balance
+6. execute without approval
+7. give minapproval
+8. execute with approval but without balance
+9. give balance - check ds
+10. revoke approval
+11. give min approval
+12. execute with approval and balance - check ds
+13. check different contract for valid state
+14. renounce ownership - check ds
+
 */
 
 describe("Multisig", function () {
@@ -96,6 +91,52 @@ describe("Multisig", function () {
           let isOwner3 = await multisig.owners(addr3);
     
           expect(isOwner3).to.equal(true);
+
+          const Tester = await ethers.getContractFactory("Tester");
+          const tester_instance=await Tester.deploy();
+          await tester_instance.deployed();
+          let tester_address = tester_instance.address;
+
+          let abi = ["function setGreeting(string calldata _greeting) public payable"];
+
+          let iface = new ethers.utils.Interface(abi);
+          let callData = iface.encodeFunctionData("setGreeting",["testing"]);
+          describe("Testing transactions", function () {
+
+            it("Should add transaction and update id_count", async function() {
+
+              let totalTransactions = await multisig.getTotalTransactions();
+
+              expect(totalTransactions).to.equal(0);
+              let submit = await multisig.submitTransaction(tester_address,callData,ethers.utils.parseUnits("1","ether"));
+              submit.wait();
+             
+              totalTransactions = await multisig.getTotalTransactions();
+              expect(totalTransactions).to.equal(1);
+
+              let transaction_instance = await multisig.getTransactionData(0);
+              //console.log(transaction_instance);
+              let instance_id = transaction_instance['id'].toNumber();
+              let instance_value = ethers.utils.formatUnits(transaction_instance['value'],"ether");
+              let instance_conf = transaction_instance['conf'].toNumber();
+              let instance_to = transaction_instance['to'];
+              let instance_data= transaction_instance['data'];
+              let instance_executed= transaction_instance['executed'];
+
+              expect(instance_id).to.equal(0);
+              expect(instance_value).to.equal('1.0');
+              expect(instance_conf).to.equal(0);
+              expect(instance_to).to.equal(tester_address);
+              expect(instance_data).to.equal(callData);
+              expect(instance_executed).to.equal(false);
+
+              console.log(instance_id);
+              console.log(instance_value);
+              console.log(instance_to);
+              console.log(instance_executed);
+
+            })
+          })
 
         })
       });
