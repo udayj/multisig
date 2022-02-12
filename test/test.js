@@ -106,7 +106,7 @@ describe("Multisig", function () {
             it("Should add transaction and update id_count", async function() {
 
               let totalTransactions = await multisig.getTotalTransactions();
-
+              
               expect(totalTransactions).to.equal(0);
               let submit = await multisig.submitTransaction(tester_address,callData,ethers.utils.parseUnits("1","ether"));
               submit.wait();
@@ -134,6 +134,63 @@ describe("Multisig", function () {
               console.log(instance_value);
               console.log(instance_to);
               console.log(instance_executed);
+
+              describe("Transaction approval, balance checks", function () {
+
+                it("Should change transaction struct, revert execution without approval/balance", async function () {
+
+                  const multisig2 = multisig.connect(wallet2);
+
+                  let approve_tx=await multisig.approveTransaction(0);
+                  approve_tx.wait();
+
+                  transaction_instance = await multisig.getTransactionData(0);
+
+                  instance_conf = transaction_instance['conf'].toNumber();
+                  console.log(instance_conf)
+                  expect(instance_conf).to.equal(1);
+
+                  await expect(multisig.executeTransaction(0)).to.be.revertedWith("Not enough balance for executing transaction");
+
+                  let sendFundTx = {
+                    to:multisig.address,
+                    value:ethers.utils.parseUnits("2","ether")
+                  }
+
+                  await wallet2.sendTransaction(sendFundTx);
+
+                  await expect(multisig.executeTransaction(0)).to.be.revertedWith("Approval quorum not met");
+
+                  approve_tx = await multisig2.approveTransaction(0);
+
+                  approve_tx.wait();
+
+                  transaction_instance = await multisig.getTransactionData(0);
+
+                  instance_conf = transaction_instance['conf'].toNumber();
+                  console.log(instance_conf)
+                  expect(instance_conf).to.equal(2);
+
+                  let greeting = await tester_instance.connect(wallet2).getGreeting();
+
+                  expect(greeting).to.equal("initial");
+
+                  let exTx = await multisig2.executeTransaction(0);
+
+                  console.log(exTx);
+                 // expect(exTx).to.equal(true);
+
+                  let tester_balance = await tester_instance.getBalance();
+
+                  expect(tester_balance).to.equal(ethers.utils.parseUnits("1","ether"));
+
+                  greeting = await tester_instance.connect(wallet2).getGreeting();
+
+                  expect(greeting).to.equal("testing");
+
+
+                })
+              })
 
             })
           })
